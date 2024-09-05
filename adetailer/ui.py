@@ -440,6 +440,14 @@ def inpainting(w: Widgets, n: int, is_img2img: bool, webui_info: WebuiInfo):
 
         with gr.Row():
             with gr.Column(variant="compact"):
+                w.ad_mask = gr.Checkbox(
+                    label="Use ad mask" + suffix(n),
+                    value=False,
+                    visible=True,
+                    elem_id=eid("ad_mask"),
+                )
+        with gr.Row():
+            with gr.Column(variant="compact"):
                 w.ad_use_checkpoint = gr.Checkbox(
                     label="Use separate checkpoint" + suffix(n),
                     value=False,

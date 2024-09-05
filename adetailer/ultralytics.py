@@ -17,8 +17,10 @@ def ultralytics_predict(
     device: str = "",
 ) -> PredictOutput:
     from ultralytics import YOLO
-
+    from ultralytics.utils import set_logging
     model = YOLO(model_path)
+    set_logging('ultralytics', verbose=False)
+    set_logging('YOLOv8', verbose=False)
     pred = model(image, conf=confidence, device=device)
 
     bboxes = pred[0].boxes.xyxy.cpu().numpy()

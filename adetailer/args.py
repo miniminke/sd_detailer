@@ -64,6 +64,7 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
     ad_use_vae: bool = False
     ad_vae: Optional[str] = None
     ad_use_sampler: bool = False
+    ad_mask: bool = False 
     ad_sampler: str = "DPM++ 2M Karras"
     ad_use_noise_multiplier: bool = False
     ad_noise_multiplier: confloat(ge=0.5, le=1.5) = 1.0
@@ -179,6 +180,7 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
 
 _all_args = [
     ("ad_model", "ADetailer model"),
+    ("ad_mask", "ADetailer using extra mask"),
     ("ad_prompt", "ADetailer prompt"),
     ("ad_negative_prompt", "ADetailer negative prompt"),
     ("ad_confidence", "ADetailer confidence"),

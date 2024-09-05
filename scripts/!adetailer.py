@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import base64
 import os
 import platform
 import re
@@ -52,7 +52,7 @@ from modules.processing import (
 )
 from modules.sd_samplers import all_samplers
 from modules.shared import cmd_opts, opts, state
-
+import io
 no_huggingface = getattr(cmd_opts, "ad_no_huggingface", False)
 adetailer_dir = Path(models_path, "adetailer")
 extra_models_dir = shared.opts.data.get("ad_extra_models_dir", "")
@@ -125,7 +125,6 @@ class AfterDetailerScript(scripts.Script):
     def __init__(self):
         super().__init__()
         self.ultralytics_device = self.get_ultralytics_device()
-
         self.controlnet_ext = None
 
     def __repr__(self):
@@ -384,7 +383,7 @@ class AfterDetailerScript(scripts.Script):
 
     def get_override_settings(self, p, args: ADetailerArgs) -> dict[str, Any]:
         d = {}
-
+        d["code_former_weight"]=0.5
         if args.ad_use_clip_skip:
             d["CLIP_stop_at_last_layers"] = args.ad_clip_skip
 
@@ -652,7 +651,6 @@ class AfterDetailerScript(scripts.Script):
         """
         if state.interrupted or state.skipped:
             return False
-
         i = self.get_i(p)
 
         i2i = self.get_i2i_p(p, args, pp.image)
@@ -669,25 +667,35 @@ class AfterDetailerScript(scripts.Script):
             predictor = ultralytics_predict
             ad_model = self.get_ad_model(args.ad_model)
             kwargs["device"] = self.ultralytics_device
-
-        with change_torch_load():
-            pred = predictor(ad_model, pp.image, args.ad_confidence, **kwargs)
-
-        masks = self.pred_preprocessing(pred, args)
-        shared.state.assign_current_image(pred.preview)
-
+        if not args.ad_mask:
+            with change_torch_load():
+                pred = predictor(ad_model, pp.image, args.ad_confidence, **kwargs)
+    
+            masks = self.pred_preprocessing(pred, args)
+            shared.state.assign_current_image(pred.preview)
+        else:
+            ### decode to PIL ###
+            pil_mask = Image.open(io.BytesIO(base64.b64decode(p.ad_mask)))
+            masks = mask_preprocess(
+            [pil_mask],
+            kernel=args.ad_dilate_erode,
+            x_offset=args.ad_x_offset,
+            y_offset=args.ad_y_offset,
+            merge_invert=args.ad_mask_merge_invert,
+            )
+            pred = pil_mask
         if not masks:
             print(
                 f"[-] ADetailer: nothing detected on image {i + 1} with {ordinal(n + 1)} settings."
             )
             return False
-
-        self.save_image(
-            p,
-            pred.preview,
-            condition="ad_save_previews",
-            suffix="-ad-preview" + suffix(n, "-"),
-        )
+        if not args.ad_mask:
+            self.save_image(
+                p,
+                pred.preview,
+                condition="ad_save_previews",
+                suffix="-ad-preview" + suffix(n, "-"),
+            )
 
         steps = len(masks)
         processed = None
@@ -720,7 +728,7 @@ class AfterDetailerScript(scripts.Script):
             self.compare_prompt(p2, processed, n=n)
             p2 = copy(i2i)
             p2.init_images = [processed.images[0]]
-
+        
         if processed is not None:
             pp.image = processed.images[0]
             return True
