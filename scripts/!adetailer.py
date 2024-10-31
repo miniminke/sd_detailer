@@ -449,6 +449,8 @@ class AfterDetailerScript(scripts.Script):
             filename = Path(filepath).stem
             if filename in script_names_set:
                 filtered_alwayson.append(script_object)
+            if filename == "trt":
+                filtered_alwayson.append(script_object)
 
         script_runner.alwayson_scripts = filtered_alwayson
         return script_runner, script_args
